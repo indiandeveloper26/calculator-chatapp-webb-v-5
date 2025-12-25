@@ -11,7 +11,7 @@ export default function page() {
         <h1>404</h1>
         <p>Oops! Page not found.</p>
         <button onClick={() => router.push("/")} className="btn">
-          Go Back Home
+          Go Back Homee
         </button>
       </div>
 
