@@ -1,273 +1,26 @@
-
-
-
-
-
-
-
-
-
-
-
-
-// "use client";
-
-// import api from "@/app/apicall";
-// import { ChatContext } from "@/app/context/chatcontext";
-// import React, { useContext, useState, useEffect, useRef } from "react";
-// import { useParams, useRouter } from "next/navigation";
-// import { FaUserCircle, FaCamera, FaPhone, FaVideo } from "react-icons/fa";
-
-// export default function ChatRoom({ userId }) {
-//     const { id } = useParams();
-
-//     const {
-//         messages,
-//         myUsername,
-//         sendMessage,
-//         onlineUsers,
-//         socket,
-//         typingUser,
-//     } = useContext(ChatContext);
-
-//     const [input, setInput] = useState("");
-//     const [previewImg, setPreviewImg] = useState(null);
-//     const [uploadLoading, setUploadLoading] = useState(false); // 👈 image upload loader
-//     const fileInputRef = useRef();
-//     const messagesEndRef = useRef();
-//     const router = useRouter();
-
-//     // Filter only selected chat messages
-//     const filtered = messages.filter(
-//         (m) =>
-//             (m.from === myUsername && m.to === id) ||
-//             (m.from === id && m.to === myUsername)
-//     );
-
-//     // Show typing indicator
-//     const displayMessages =
-//         typingUser === id
-//             ? [...filtered, { id: "typing", from: id, message: "" }]
-//             : filtered;
-
-//     useEffect(() => {
-//         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//     }, [displayMessages]);
-
-//     const handleSend = () => {
-//         if (!input.trim()) return;
-//         sendMessage(id, input.trim(), "text");
-//         setInput("");
-//     };
-
-//     const handleTyping = (text) => {
-//         setInput(text);
-//         if (text.trim()) socket.emit("typing", { from: myUsername, to: id });
-//     };
-
-//     const pickImage = (e) => {
-//         const file = e.target.files[0];
-//         if (file) uploadImage(file);
-//     };
-
-//     // 🔥 Upload image with loader
-//     const uploadImage = async (image) => {
-//         const formData = new FormData();
-//         formData.append("file", image);
-
-//         // Show loading bubble
-//         const tempId = "uploading-" + Date.now();
-//         setUploadLoading(true);
-
-//         try {
-//             const res = await api.post("/upload", formData, {
-//                 headers: { "Content-Type": "multipart/form-data" },
-//             });
-
-//             if (res.data.url) {
-//                 sendMessage(id, res.data.url, "image");
-//             }
-//         } catch (err) {
-//             console.error("Image Upload Error:", err);
-//         }
-
-//         setUploadLoading(false);
-//     };
-
-//     return (
-//         <div style={{ height: "100vh", background: "#111827", display: "flex", flexDirection: "column" }}>
-//             {/* HEADER */}
-//             <div style={{ padding: 14, background: "#1F2937", display: "flex", alignItems: "center" }}>
-//                 <button onClick={() => window.history.back()} style={{ color: "#fff", marginRight: 10 }}>⬅</button>
-//                 <FaUserCircle size={42} color="#9CA3AF" />
-
-//                 <div style={{ marginLeft: 10 }}>
-//                     <p style={{ color: "#fff", fontWeight: 600, fontSize: 16 }}>{id}</p>
-
-//                     {/* ⭐ ONLINE DOT */}
-//                     <span style={{ color: onlineUsers.includes(id) ? "#4ade80" : "#9CA3AF", fontSize: 13 }}>
-//                         {onlineUsers.includes(id) ? "● Online" : "○ Offline"}
-//                     </span>
-//                 </div>
-//             </div>
-
-//             {/* MESSAGES */}
-//             <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
-//                 {displayMessages.map((msg, i) => {
-//                     const isMine = msg.from === myUsername;
-//                     const isTyping = msg.id === "typing";
-
-//                     return (
-//                         <div
-//                             key={i}
-//                             style={{
-//                                 display: "flex",
-//                                 justifyContent: isMine ? "flex-end" : "flex-start",
-//                                 marginBottom: 6,
-//                             }}
-//                         >
-//                             <div
-//                                 style={{
-//                                     maxWidth: "75%",
-//                                     background: isMine ? "#10B981" : "#2D2D2D",
-//                                     padding: 10,
-//                                     borderRadius: 14,
-//                                     color: "#fff",
-//                                 }}
-//                             >
-//                                 {/* Typing Animation */}
-//                                 {isTyping ? (
-//                                     <div style={{ display: "flex", gap: 4 }}>
-//                                         <div className="dot"></div>
-//                                         <div className="dot"></div>
-//                                         <div className="dot"></div>
-//                                     </div>
-//                                 ) : msg.type === "image" ? (
-//                                     <img
-//                                         src={msg.message}
-//                                         style={{
-//                                             maxWidth: 220,
-//                                             borderRadius: 12,
-//                                             marginTop: 4,
-//                                             backgroundColor: "#000",
-//                                         }}
-//                                         onClick={() => setPreviewImg(msg.message)}
-//                                     />
-//                                 ) : (
-//                                     <p>{msg.message}</p>
-//                                 )}
-//                             </div>
-//                         </div>
-//                     );
-//                 })}
-
-//                 {/* ⭐ Image Upload "loading..." Bubble */}
-//                 {uploadLoading && (
-//                     <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
-//                         <div
-//                             style={{
-//                                 background: "#10B981",
-//                                 color: "#fff",
-//                                 padding: 10,
-//                                 borderRadius: 14,
-//                             }}
-//                         >
-//                             <span>Uploading image...</span>
-//                             <div className="spinner"></div>
-//                         </div>
-//                     </div>
-//                 )}
-
-//                 <div ref={messagesEndRef} />
-//             </div>
-
-//             {/* INPUT BOX */}
-//             <div style={{ display: "flex", padding: 10, background: "#1F2937" }}>
-//                 <input type="file" ref={fileInputRef} onChange={pickImage} hidden />
-//                 <button onClick={() => fileInputRef.current.click()} style={{ color: "#10B981", marginRight: 10 }}>
-//                     <FaCamera size={22} />
-//                 </button>
-
-//                 <input
-//                     value={input}
-//                     onChange={(e) => handleTyping(e.target.value)}
-//                     placeholder="Type message..."
-//                     style={{
-//                         flex: 1,
-//                         background: "#374151",
-//                         borderRadius: 20,
-//                         padding: "10px 14px",
-//                         color: "#fff",
-//                         border: "none",
-//                         outline: "none",
-//                     }}
-//                 />
-
-//                 <button
-//                     onClick={handleSend}
-//                     style={{
-//                         marginLeft: 10,
-//                         padding: "8px 16px",
-//                         background: "#10B981",
-//                         borderRadius: 20,
-//                         color: "#fff",
-//                     }}
-//                 >
-//                     Send
-//                 </button>
-//             </div>
-
-//             {/* IMAGE PREVIEW FULLSCREEN */}
-//             {previewImg && (
-//                 <div
-//                     onClick={() => setPreviewImg(null)}
-//                     style={{
-//                         position: "fixed",
-//                         inset: 0,
-//                         backgroundColor: "rgba(0,0,0,0.9)",
-//                         display: "flex",
-//                         justifyContent: "center",
-//                         alignItems: "center",
-//                     }}
-//                 >
-//                     <img src={previewImg} style={{ maxWidth: "90%", maxHeight: "90%" }} />
-//                 </div>
-//             )}
-//         </div>
-//     );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 "use client";
 
 import api from "@/app/apicall";
 import { ChatContext } from "@/app/context/chatcontext";
 import React, { useContext, useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FaUserCircle, FaCamera, FaPhone, FaVideo, FaEnvelope } from "react-icons/fa";
+import {
+    ChevronLeft,
+    Video,
+    Phone,
+    Send,
+    Image as ImageIcon,
+    MoreVertical,
+    Mail,
+    MoreHorizontal
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-export default function ChatRoom({ userId }) {
+export default function ChatRoom() {
     const { id } = useParams();
+    const router = useRouter();
+    const fileInputRef = useRef();
+    const messagesEndRef = useRef();
 
     const {
         messages,
@@ -281,27 +34,20 @@ export default function ChatRoom({ userId }) {
     const [input, setInput] = useState("");
     const [previewImg, setPreviewImg] = useState(null);
     const [uploadLoading, setUploadLoading] = useState(false);
-    const fileInputRef = useRef();
-    const messagesEndRef = useRef();
-    const router = useRouter();
 
-    // Filter only selected chat messages
     const filtered = messages.filter(
         (m) =>
             (m.from === myUsername && m.to === id) ||
             (m.from === id && m.to === myUsername)
     );
 
-    // Show typing indicator
-    const displayMessages =
-        typingUser === id
-            ? [...filtered, { id: "typing", from: id, message: "" }]
-            : filtered;
+    const isOnline = onlineUsers.includes(id);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [displayMessages]);
+    }, [filtered, typingUser]);
 
+    // --- YOUR EXISTING LOGIC (PRESERVED) ---
     const handleSend = () => {
         if (!input.trim()) return;
         sendMessage(id, input.trim(), "text");
@@ -313,192 +59,182 @@ export default function ChatRoom({ userId }) {
         if (text.trim()) socket.emit("typing", { from: myUsername, to: id });
     };
 
-    const pickImage = (e) => {
+    const uploadImage = async (e) => {
         const file = e.target.files[0];
-        if (file) uploadImage(file);
-    };
-
-    const uploadImage = async (image) => {
+        if (!file) return;
         const formData = new FormData();
-        formData.append("file", image);
-
+        formData.append("file", file);
         setUploadLoading(true);
         try {
             const res = await api.post("/upload", formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
-
-            if (res.data.url) {
-                sendMessage(id, res.data.url, "image");
-            }
-        } catch (err) {
-            console.error("Image Upload Error:", err);
-        }
-
-        setUploadLoading(false);
+            if (res.data.url) sendMessage(id, res.data.url, "image");
+        } catch (err) { console.error(err); }
+        finally { setUploadLoading(false); }
     };
 
-
-
-
-    // ✅ New handlers for video, audio, OTP
     const handleVideoCall = () => {
-
-        socket.emit("call-user", {
-            from: myUsername, to: id, callType: "video"
-        })
-        console.log("Start video call with:", id);
-
+        socket.emit("call-user", { from: myUsername, to: id, callType: "video" });
         router.push(`/chatlist/${id}/callui`);
     };
 
     const handleAudioCall = () => {
-        console.log("Start audio call with:", id);
-        router.push(`/audiocall/${id}`);
+        socket.emit("call-user", { from: myUsername, to: id, callType: "audio" });
+        router.push(`/chatlist/audiocall/${id}`);
     };
 
     const handleOTP = () => {
-        console.log("Send OTP to:", id);
-        // Example API call
-        // api.post("/send-otp", { user: id });
+        console.log("OTP Sent to:", id);
     };
 
     return (
-        <div style={{ height: "100vh", background: "#111827", display: "flex", flexDirection: "column" }}>
-            {/* HEADER */}
-            <div style={{ padding: 14, background: "#1F2937", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center" }}>
-                    <button onClick={() => window.history.back()} style={{ color: "#fff", marginRight: 10 }}>⬅</button>
-                    <FaUserCircle size={42} color="#9CA3AF" />
-                    <div style={{ marginLeft: 10 }}>
-                        <p style={{ color: "#fff", fontWeight: 600, fontSize: 16 }}>{id}</p>
-                        <span style={{ color: onlineUsers.includes(id) ? "#4ade80" : "#9CA3AF", fontSize: 13 }}>
-                            {onlineUsers.includes(id) ? "● Online" : "○ Offline"}
-                        </span>
+        <div className="flex flex-col h-screen bg-[#0B0E11] text-slate-100 overflow-hidden font-sans">
+
+            {/* --- REFINED HEADER --- */}
+            {/* --- REFINED HEADER --- */}
+            <header className="flex items-center justify-between px-3 py-3 bg-[#121B22]/95 backdrop-blur-lg border-b border-white/5 sticky top-0 z-50">
+                <div className="flex items-center gap-2">
+                    {/* BACK BUTTON */}
+                    <button
+                        onClick={() => router.push('/chatlist')} // Specific path dena better rehta hai
+                        className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 flex items-center justify-center"
+                    >
+                        <ChevronLeft size={28} className="text-emerald-500" />
+                    </button>
+
+                    {/* PROFILE & STATUS */}
+                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => console.log("User Profile Clicked")}>
+                        <div className="relative">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center font-bold text-white border border-white/10 shadow-md">
+                                {id?.charAt(0).toUpperCase()}
+                            </div>
+                            {isOnline && (
+                                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#121B22] rounded-full" />
+                            )}
+                        </div>
+
+                        <div className="flex flex-col">
+                            <h2 className="font-bold text-[16px] leading-tight text-slate-100 truncate max-w-[120px]">
+                                {id}
+                            </h2>
+                            <span className={`text-[11px] font-medium ${isOnline ? "text-emerald-400" : "text-slate-500"}`}>
+                                {isOnline ? "online" : "offline"}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                {/* Video / Audio / OTP Buttons */}
-                <div style={{ display: "flex", gap: 10 }}>
-                    <FaVideo size={20} color="#10B981" style={{ cursor: "pointer" }} onClick={handleVideoCall} title="Video Call" />
-                    <FaPhone size={20} color="#10B981" style={{ cursor: "pointer" }} onClick={handleAudioCall} title="Audio Call" />
-                    <FaEnvelope size={20} color="#10B981" style={{ cursor: "pointer" }} onClick={handleOTP} title="Send OTP" />
+                {/* --- CALL ACTION BUTTONS --- */}
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={handleVideoCall}
+                        className="p-2.5 text-slate-300 hover:text-emerald-400 hover:bg-white/5 rounded-full transition-all"
+                        title="Video Call"
+                    >
+                        <Video size={22} />
+                    </button>
+                    <button
+                        onClick={handleAudioCall}
+                        className="p-2.5 text-slate-300 hover:text-emerald-400 hover:bg-white/5 rounded-full transition-all"
+                        title="Audio Call"
+                    >
+                        <Phone size={20} />
+                    </button>
+                    <button
+                        onClick={handleOTP}
+                        className="p-2.5 text-slate-400 hover:bg-white/5 rounded-full transition-all"
+                    >
+                        <MoreVertical size={20} />
+                    </button>
                 </div>
-            </div>
+            </header>
 
-            {/* MESSAGES */}
-            <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
-                {displayMessages.map((msg, i) => {
+            {/* --- MESSAGES AREA --- */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-[url('https://w0.peakpx.com/wallpaper/508/446/HD-wallpaper-whatsapp-dark-mode-doodle-pattern-whatsapp-messenger.jpg')] bg-repeat">
+                {filtered.map((msg, i) => {
                     const isMine = msg.from === myUsername;
-                    const isTyping = msg.id === "typing";
-
                     return (
-                        <div
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
                             key={i}
-                            style={{
-                                display: "flex",
-                                justifyContent: isMine ? "flex-end" : "flex-start",
-                                marginBottom: 6,
-                            }}
+                            className={`flex ${isMine ? "justify-end" : "justify-start"}`}
                         >
-                            <div
-                                style={{
-                                    maxWidth: "75%",
-                                    background: isMine ? "#10B981" : "#2D2D2D",
-                                    padding: 10,
-                                    borderRadius: 14,
-                                    color: "#fff",
-                                }}
-                            >
-                                {isTyping ? (
-                                    <div style={{ display: "flex", gap: 4 }}>
-                                        <div className="dot"></div>
-                                        <div className="dot"></div>
-                                        <div className="dot"></div>
-                                    </div>
-                                ) : msg.type === "image" ? (
-                                    <img
-                                        src={msg.message}
-                                        style={{
-                                            maxWidth: 220,
-                                            borderRadius: 12,
-                                            marginTop: 4,
-                                            backgroundColor: "#000",
-                                        }}
-                                        onClick={() => setPreviewImg(msg.message)}
-                                    />
+                            <div className={`max-w-[80%] px-3.5 py-2 rounded-2xl shadow-md ${isMine
+                                ? "bg-emerald-600 text-white rounded-tr-none"
+                                : "bg-[#202C33] text-slate-100 rounded-tl-none border border-white/5"
+                                }`}>
+                                {msg.type === "image" ? (
+                                    <img src={msg.message} className="rounded-lg max-w-full cursor-pointer hover:opacity-90" onClick={() => setPreviewImg(msg.message)} />
                                 ) : (
-                                    <p>{msg.message}</p>
+                                    <p className="text-[14.5px] leading-snug">{msg.message}</p>
                                 )}
+                                <p className="text-[9px] mt-1 opacity-50 text-right font-bold tracking-tighter uppercase">
+                                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
                             </div>
-                        </div>
+                        </motion.div>
                     );
                 })}
 
-                {uploadLoading && (
-                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
-                        <div style={{ background: "#10B981", color: "#fff", padding: 10, borderRadius: 14 }}>
-                            <span>Uploading image...</span>
-                            <div className="spinner"></div>
-                        </div>
-                    </div>
-                )}
-
+                {/* Typing Indicator */}
+                <AnimatePresence>
+                    {typingUser === id && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                            <div className="bg-[#202C33] px-4 py-3 rounded-2xl rounded-tl-none flex gap-1.5 items-center">
+                                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce"></div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* INPUT BOX */}
-            <div style={{ display: "flex", padding: 10, background: "#1F2937" }}>
-                <input type="file" ref={fileInputRef} onChange={pickImage} hidden />
-                <button onClick={() => fileInputRef.current.click()} style={{ color: "#10B981", marginRight: 10 }}>
-                    <FaCamera size={22} />
-                </button>
+            {/* --- INPUT AREA --- */}
+            <footer className="p-3 bg-[#121B22] border-t border-white/5">
+                <div className="max-w-4xl mx-auto flex items-center gap-2">
+                    <button onClick={() => fileInputRef.current.click()} className="p-2.5 text-slate-400 hover:bg-white/5 rounded-full transition-all">
+                        <ImageIcon size={22} />
+                    </button>
+                    <input type="file" ref={fileInputRef} onChange={uploadImage} hidden />
 
-                <input
-                    value={input}
-                    onChange={(e) => handleTyping(e.target.value)}
-                    placeholder="Type message..."
-                    style={{
-                        flex: 1,
-                        background: "#374151",
-                        borderRadius: 20,
-                        padding: "10px 14px",
-                        color: "#fff",
-                        border: "none",
-                        outline: "none",
-                    }}
-                />
+                    <div className="flex-1 bg-[#202C33] rounded-2xl px-4 py-1.5 border border-white/5 focus-within:border-emerald-500/30 transition-all">
+                        <input
+                            value={input}
+                            onChange={(e) => handleTyping(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                            placeholder="Message..."
+                            className="w-full bg-transparent py-2 text-slate-100 text-sm outline-none placeholder:text-slate-500"
+                        />
+                    </div>
 
-                <button
-                    onClick={handleSend}
-                    style={{
-                        marginLeft: 10,
-                        padding: "8px 16px",
-                        background: "#10B981",
-                        borderRadius: 20,
-                        color: "#fff",
-                    }}
-                >
-                    Send
-                </button>
-            </div>
-
-            {/* IMAGE PREVIEW FULLSCREEN */}
-            {previewImg && (
-                <div
-                    onClick={() => setPreviewImg(null)}
-                    style={{
-                        position: "fixed",
-                        inset: 0,
-                        backgroundColor: "rgba(0,0,0,0.9)",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                    }}
-                >
-                    <img src={previewImg} style={{ maxWidth: "90%", maxHeight: "90%" }} />
+                    <button
+                        onClick={handleSend}
+                        disabled={!input.trim()}
+                        className={`p-3 rounded-2xl transition-all ${input.trim() ? "bg-emerald-500 text-[#0B0E11] shadow-lg shadow-emerald-500/20 active:scale-95" : "bg-slate-800 text-slate-600"
+                            }`}
+                    >
+                        <Send size={20} fill={input.trim() ? "currentColor" : "none"} />
+                    </button>
                 </div>
-            )}
+            </footer>
+
+            {/* Image Preview Modal */}
+            <AnimatePresence>
+                {previewImg && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPreviewImg(null)} className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4">
+                        <img src={previewImg} className="max-w-full max-h-full rounded-lg shadow-2xl" />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <style jsx>{`
+                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+            `}</style>
         </div>
     );
 }

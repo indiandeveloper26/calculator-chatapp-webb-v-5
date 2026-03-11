@@ -368,33 +368,19 @@
 
 
 
-
-
-
 "use client";
 import React, { useContext, useEffect, useState } from "react";
-
-
-
 import { useRouter } from "next/navigation";
 import { ChatContext } from "@/app/context/chatcontext";
+import { PhoneOff, Video, Phone, MicOff, Volume2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function page({ from, to, callType = "video" }) {
-    const { socket, incomingUser } = useContext(ChatContext);
+    const { socket } = useContext(ChatContext);
     const router = useRouter();
-
     const [dots, setDots] = useState(".");
 
-    // Navigate to video call screen when call is accepted
-    // useEffect(() => {
-    //     if (setcurrenuser) {
-    //         console.log("Call ongoing, navigating to video room");
-    //         router.push(`/videoroom?userId=${to}`);
-    //         setsetcurrenuser(null);
-    //     }
-    // }, [setcurrenuser, to, router, setsetcurrenuser]);
-
-    // Calling animation dots
+    // Calling animation dots logic
     useEffect(() => {
         const i = setInterval(() => {
             setDots((d) => (d.length < 3 ? d + "." : "."));
@@ -408,60 +394,97 @@ export default function page({ from, to, callType = "video" }) {
     };
 
     return (
-        <div style={styles.container}>
-            {/* CALL TYPE ICON */}
-            <div style={styles.icon}>{callType === "video" ? "📹" : "📞"}</div>
+        <div className="relative h-screen w-full bg-[#0b0e11] flex flex-col items-center justify-between py-20 overflow-hidden text-white">
 
-            {/* USER AVATAR */}
-            <img
-                src="https://placekitten.com/200/200"
-                alt="avatar"
-                style={styles.avatar}
-            />
-
-            {/* TEXT */}
-            <div style={styles.callingText}>
-                {from} is calling {to}{dots}
+            {/* --- Animated Background Ripples --- */}
+            <div className="absolute inset-0 flex items-center justify-center z-0">
+                {[1, 2, 3].map((index) => (
+                    <motion.div
+                        key={index}
+                        initial={{ scale: 0.8, opacity: 0.5 }}
+                        animate={{ scale: 2.5, opacity: 0 }}
+                        transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            delay: index,
+                            ease: "easeOut",
+                        }}
+                        className="absolute w-64 h-64 border border-emerald-500/30 rounded-full"
+                    />
+                ))}
             </div>
 
-            <div style={styles.subText}>
-                {callType === "video" ? "Video call" : "Audio call"}
+            {/* --- TOP SECTION: User Info --- */}
+            <div className="z-10 flex flex-col items-center gap-4">
+                <motion.div
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="flex items-center gap-2 bg-white/5 px-4 py-1.5 rounded-full border border-white/10 backdrop-blur-md"
+                >
+                    <span className="text-emerald-400 animate-pulse">●</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-slate-300">
+                        {callType === "video" ? "Outgoing Video Call" : "Outgoing Audio Call"}
+                    </span>
+                </motion.div>
+
+                <div className="mt-8 flex flex-col items-center">
+                    <h1 className="text-3xl font-bold tracking-tight">{to}</h1>
+                    <p className="text-slate-400 text-lg font-medium mt-1">
+                        Calling{dots}
+                    </p>
+                </div>
             </div>
 
-            {/* BUTTONS */}
-            <div style={styles.buttons}>
-                <button style={styles.endBtn} onClick={handleCancel}>
-                    📞
-                </button>
+            {/* --- MIDDLE SECTION: Avatar --- */}
+            <div className="relative z-10">
+                <motion.div
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="relative"
+                >
+                    <div className="w-40 h-40 rounded-full border-4 border-emerald-500 p-1 shadow-[0_0_50px_-12px_rgba(16,185,129,0.5)]">
+                        <img
+                            src={`https://ui-avatars.com/api/?name=${to}&background=10b981&color=fff&size=200`}
+                            alt="avatar"
+                            className="w-full h-full rounded-full object-cover"
+                        />
+                    </div>
+                </motion.div>
+
+                {/* Small Call Type Overlay Icon */}
+                <div className="absolute bottom-2 right-2 bg-emerald-500 p-2.5 rounded-full shadow-lg border-4 border-[#0b0e11]">
+                    {callType === "video" ? <Video size={18} fill="white" /> : <Phone size={18} fill="white" />}
+                </div>
             </div>
+
+            {/* --- BOTTOM SECTION: Controls --- */}
+            <div className="z-10 w-full max-w-md px-10">
+                <div className="flex flex-col gap-10 items-center">
+
+                    {/* Secondary Controls */}
+                    <div className="flex justify-center gap-8 text-slate-400">
+                        <button className="p-4 hover:bg-white/10 rounded-full transition-all">
+                            <MicOff size={24} />
+                        </button>
+                        <button className="p-4 hover:bg-white/10 rounded-full transition-all">
+                            <Volume2 size={24} />
+                        </button>
+                    </div>
+
+                    {/* Main End Call Button */}
+                    <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={handleCancel}
+                        className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-[0_10px_40px_-10px_rgba(239,68,68,0.5)] group"
+                    >
+                        <PhoneOff size={32} className="text-white group-hover:rotate-12 transition-transform" />
+                    </motion.button>
+                </div>
+            </div>
+
+            {/* Background Gradient Glow */}
+            <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-full h-64 bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
         </div>
     );
 }
-
-const styles = {
-    container: {
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 20,
-        height: "100vh",
-        backgroundColor: "#000",
-        color: "#fff",
-    },
-    icon: { fontSize: 60, color: "#22C55E" },
-    avatar: { width: 140, height: 140, borderRadius: "50%", border: "2px solid #22C55E" },
-    callingText: { fontSize: 20, fontWeight: 600, marginTop: 10 },
-    subText: { fontSize: 14, color: "#9CA3AF" },
-    buttons: { marginTop: 50, display: "flex", gap: 20 },
-    endBtn: {
-        width: 70,
-        height: 70,
-        borderRadius: "50%",
-        backgroundColor: "#EF4444",
-        color: "#fff",
-        fontSize: 24,
-        border: "none",
-        cursor: "pointer",
-    },
-};

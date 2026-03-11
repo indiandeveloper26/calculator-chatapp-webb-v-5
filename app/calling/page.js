@@ -2,167 +2,134 @@
 import React, { useContext, useEffect, useRef } from "react";
 import { ChatContext } from "../context/chatcontext";
 import { useRouter } from "next/navigation";
-import { FiPhoneCall } from "react-icons/fi"; // audio icon
-import { FiVideo } from "react-icons/fi"; // video icon
-import { IoClose } from "react-icons/io5"; // reject icon
+import { Phone, Video, X, Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function IncomingCall() {
-    const { incomingCall, incomingUser, setIncomingCall, myUsername, socket } = useContext(ChatContext);
+    const { incomingCall, setIncomingCall, incomingUser, myUsername, socket } = useContext(ChatContext);
     const router = useRouter();
     const audioRef = useRef(null);
 
-    console.log('userdata', incomingUser)
-
-    // Play ringtone
+    // Ye log check karne ke liye hai ki call aate hi data kya hai
     useEffect(() => {
         if (incomingCall) {
+            console.log("📞 Incoming Call Data Received:", incomingCall);
+        }
+    }, [incomingCall]);
+
+    useEffect(() => {
+        if (incomingCall && incomingCall.from) {
             const audio = new Audio("/ringtone.mp3");
             audio.loop = true;
             audio.play().catch(err => console.log("Audio play failed:", err));
             audioRef.current = audio;
-        } else if (audioRef.current) {
+        } else {
+            stopRingtone();
+        }
+        return () => stopRingtone();
+    }, [incomingCall]);
+
+    const stopRingtone = () => {
+        if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
             audioRef.current = null;
         }
-
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.currentTime = 0;
-                audioRef.current = null;
-            }
-        };
-    }, [incomingCall]);
-
-    console.log('inocmig type,user ', incomingUser)
+    };
 
     const acceptCall = () => {
+        if (!incomingCall) return;
+
+        const callerId = incomingUser.from;
+        const roomId = incomingCall.roomId;
+        const type = incomingUser.callType || incomingCall.callType;
+
+        stopRingtone();
+
+        console.log('type call kaaa', type)
+
+        // Server ko accept event bhejna
+        socket.emit("accept-call", {
+            from: myUsername,
+            to: callerId,
+            type: type,
+            roomId: roomId
+        });
 
 
-        console.log(incomingUser)
-        console.log('call ac[ected and do now')
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-        }
-        console.log('call ac[ected and do now')
+
+
+        socket.emit("join-room", { roomId: roomId });
+
+        // State clear karna
         setIncomingCall(null);
-        socket.emit("accept-call", { from: myUsername, to: incomingUser.from });
-        socket.emit("join_room", { roomId: incomingUser.roomId });
-        // Route according to type
-        if (incomingUser.type === "video") {
-            router.push(`/chatlist/${incomingUser}/callui/videocall`);
+
+        // Navigation
+        if (type === "video") {
+
+            console.log('go vidoe call')
+            router.push(`/chatlist/${callerId}/callui/videocall`);
         } else {
-            router.push(`/chatlist/${incomingUser.from}/callui/videocall`);
+            router.push(`/chatlist/audiocall/${callerId}`);
+            console.log('go auido call')
         }
-
-
     };
 
     const rejectCall = () => {
-
-        console.log('callend now')
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
+        stopRingtone();
+        if (incomingCall?.from) {
+            socket.emit("reject-call", { to: incomingCall.from });
         }
-        console.log('rject usr', incomingUser)
-
-        socket.emit("end-call", { from: myUsername, to: incomingUser.from });
         setIncomingCall(null);
     };
 
+    // Yahan check kijiye ki 'incomingCall' exist karta hai ya nahi
     if (!incomingCall) return null;
 
-    // Choose icon based on call type
-    const CallIcon = incomingCall.type === "video" ? FiVideo : FiPhoneCall;
-
     return (
-        <div style={styles.overlay}>
-            <div style={styles.card}>
-                <div style={styles.iconWrapper}>
-                    <CallIcon size={48} color={incomingCall.type === "video" ? "#3B82F6" : "#10B981"} />
-                </div>
-                <h2 style={styles.title}>
-                    {incomingCall.from} is callingggg
-                </h2>
-                <p style={styles.subtitle}>
-                    {incomingCall.type === "video" ? "Video Call" : "Audio Call"}
-                </p>
-                <div style={styles.buttons}>
-                    <button style={{ ...styles.button, ...styles.accept }} onClick={acceptCall}>
-                        <FiPhoneCall size={20} /> Accept
-                    </button>
-                    <button style={{ ...styles.button, ...styles.reject }} onClick={rejectCall}>
-                        <IoClose size={20} /> Reject
-                    </button>
-                </div>
-            </div>
-        </div>
+        <AnimatePresence>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                // Z-index ko max rakha hai (99999) taaki har cheez ke upar dikhe
+                className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/90 backdrop-blur-md"
+            >
+                <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    className="w-[90%] max-w-sm bg-[#1c1c1e] rounded-[30px] p-8 border border-white/10 shadow-2xl text-center"
+                >
+                    {/* Avatar */}
+                    <div className="w-24 h-24 bg-gradient-to-br from-gray-700 to-gray-900 rounded-full mx-auto mb-4 flex items-center justify-center text-4xl text-white font-bold border-2 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                        {incomingCall.from?.charAt(0).toUpperCase()}
+                    </div>
+
+                    <h2 className="text-2xl font-bold text-white mb-2">{incomingCall.from}</h2>
+                    <p className="text-emerald-400 font-medium mb-8 animate-pulse">
+                        {incomingCall.type === "video" ? "Incoming Video Call..." : "Incoming Audio Call..."}
+                    </p>
+
+                    <div className="flex justify-around items-center">
+                        {/* Reject */}
+                        <button
+                            onClick={rejectCall}
+                            className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+                        >
+                            <X size={32} />
+                        </button>
+
+                        {/* Accept */}
+                        <button
+                            onClick={acceptCall}
+                            className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white hover:bg-emerald-600 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                        >
+                            <Check size={32} />
+                        </button>
+                    </div>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
     );
 }
-
-// Styles
-const styles = {
-    overlay: {
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.6)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 9999,
-    },
-    card: {
-        backgroundColor: "#fff",
-        padding: "30px 20px",
-        borderRadius: "16px",
-        width: "90%",
-        maxWidth: "400px",
-        textAlign: "center",
-        boxShadow: "0 8px 20px rgba(0,0,0,0.3)",
-    },
-    iconWrapper: {
-        marginBottom: "15px",
-    },
-    title: {
-        fontSize: "20px",
-        fontWeight: "600",
-        marginBottom: "5px",
-    },
-    subtitle: {
-        fontSize: "16px",
-        color: "#555",
-        marginBottom: "20px",
-    },
-    buttons: {
-        display: "flex",
-        justifyContent: "space-between",
-        gap: "10px",
-    },
-    button: {
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "8px",
-        padding: "12px",
-        borderRadius: "10px",
-        color: "#fff",
-        border: "none",
-        fontWeight: "bold",
-        cursor: "pointer",
-        fontSize: "16px",
-        transition: "0.2s ease",
-    },
-    accept: {
-        backgroundColor: "#4CAF50",
-    },
-    reject: {
-        backgroundColor: "#EF4444",
-    },
-};

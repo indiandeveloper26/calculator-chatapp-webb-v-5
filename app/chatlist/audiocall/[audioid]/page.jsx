@@ -3,7 +3,8 @@
 import React, { useEffect, useRef, useState, useContext } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ChatContext } from "@/app/context/chatcontext";
-import { FiMic, FiMicOff, FiPhoneOff } from "react-icons/fi";
+import { Mic, MicOff, PhoneOff, User, MoreVertical, ShieldCheck, Volume2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function AudioCall() {
     const { socket, myUsername, currentCall } = useContext(ChatContext);
@@ -17,10 +18,10 @@ export default function AudioCall() {
     const [isCallActive, setIsCallActive] = useState(false);
     const [callTime, setCallTime] = useState(0);
 
-    // ✅ 1️⃣ Create peer connection
+    // ✅ Testing ke liye Static Room ID
+    const TEST_ROOM_ID = "123456";
 
-
-    console.log('audiacll scrren')
+    // ✅ WebRTC Logic (Preserved)
     const createPeer = () => {
         const peer = new RTCPeerConnection({
             iceServers: [
@@ -29,32 +30,24 @@ export default function AudioCall() {
             ],
         });
 
-        console.log('audiacll scrren1')
-
         peer.ontrack = (event) => {
             if (remoteAudioRef.current) {
                 remoteAudioRef.current.srcObject = event.streams[0];
             }
         };
-        console.log('audiacll scrren2')
+
         peer.onicecandidate = (event) => {
             if (event.candidate) {
                 socket.emit("webrtc-candidate", {
-
-                    to: audioid, // ✅ FIXED: server expects "to"
+                    to: audioid,
+                    roomId: TEST_ROOM_ID, // Static ID use ki
                     candidate: event.candidate,
-
-
                 });
-                console.log('web rtc run hua')
             }
         };
-        console.log('audiacll scrren3')
-
         return peer;
     };
 
-    // ✅ 2️⃣ Start mic
     useEffect(() => {
         const startStream = async () => {
             try {
@@ -67,44 +60,32 @@ export default function AudioCall() {
         startStream();
     }, []);
 
-    // ✅ 3️⃣ WebRTC events
     useEffect(() => {
         if (!socket) return;
 
         socket.on("webrtc-offer", async ({ from, sdp }) => {
-            console.log("📞 Got offer from", from);
             pc.current = createPeer();
             localStream?.getTracks().forEach((track) => pc.current.addTrack(track, localStream));
-
             await pc.current.setRemoteDescription({ type: "offer", sdp });
             const answer = await pc.current.createAnswer();
             await pc.current.setLocalDescription(answer);
-
-            socket.emit("webrtc-answer", { to: from, sdp: answer }); // ✅ FIXED
+            socket.emit("webrtc-answer", { to: from, roomId: TEST_ROOM_ID, sdp: answer });
             setIsCallActive(true);
         });
 
         socket.on("webrtc-answer", async ({ from, sdp }) => {
-            console.log("✅ Got answer from", from);
             await pc.current.setRemoteDescription({ type: "answer", sdp });
             setIsCallActive(true);
         });
 
         socket.on("webrtc-candidate", async ({ candidate }) => {
-            console.log("🧊 Got ICE candidate");
             if (pc.current && candidate) {
-                try {
-                    await pc.current.addIceCandidate(candidate);
-                } catch (e) {
-                    console.error("ICE candidate error:", e);
-                }
+                try { await pc.current.addIceCandidate(candidate); }
+                catch (e) { console.error(e); }
             }
         });
 
-        socket.on("end-call", () => {
-            console.log("📴 Call ended by peer");
-            endCall(false);
-        });
+        socket.on("end-call", () => endCall(false));
 
         return () => {
             socket.off("webrtc-offer");
@@ -114,26 +95,20 @@ export default function AudioCall() {
         };
     }, [socket, localStream]);
 
-    // ✅ 4️⃣ Start call (caller side)
     useEffect(() => {
         if (!localStream) return;
-        if (currentCall?.from === myUsername) {
-            makeOffer();
-        }
+        if (currentCall?.from === myUsername) makeOffer();
     }, [localStream, currentCall]);
 
     const makeOffer = async () => {
         pc.current = createPeer();
         localStream.getTracks().forEach((track) => pc.current.addTrack(track, localStream));
-
         const offer = await pc.current.createOffer();
         await pc.current.setLocalDescription(offer);
-
-        socket.emit("webrtc-offer", { to: audioid, sdp: offer }); // ✅ FIXED
+        socket.emit("webrtc-offer", { to: audioid, roomId: TEST_ROOM_ID, sdp: offer });
         setIsCallActive(true);
     };
 
-    // ✅ 5️⃣ Toggle mic
     const toggleMic = () => {
         const track = localStream?.getAudioTracks()[0];
         if (track) {
@@ -142,18 +117,14 @@ export default function AudioCall() {
         }
     };
 
-    // ✅ 6️⃣ End call
     const endCall = (emit = true) => {
-        console.log("🔚 Ending call");
-        if (emit) socket.emit("end-call", { to: audioid });
+        if (emit) socket.emit("end-call", { to: audioid, roomId: TEST_ROOM_ID });
         pc.current?.close();
         localStream?.getTracks().forEach((t) => t.stop());
         setIsCallActive(false);
-        setCallTime(0);
         router.push(`/chatlist/${audioid}`);
     };
 
-    // ✅ 7️⃣ Timer
     useEffect(() => {
         if (!isCallActive) return;
         const timer = setInterval(() => setCallTime((p) => p + 1), 1000);
@@ -167,72 +138,121 @@ export default function AudioCall() {
     };
 
     return (
-        <div style={styles.container}>
-            <h2 style={styles.title}>
-                {isCallActive ? `In Call with ${audioid}` : `Calling ${audioid}...`}
-            </h2>
-            {isCallActive && <p style={styles.timer}>{formatTime(callTime)}</p>}
-            <audio ref={remoteAudioRef} autoPlay playsInline />
+        <div className="h-screen w-full bg-[#0B0E11] flex flex-col items-center justify-between py-16 px-6 overflow-hidden text-white font-sans relative">
 
-            <div style={styles.buttonsWrapper}>
-                <button
-                    style={{
-                        ...styles.button,
-                        backgroundColor: isMuted ? "#EF4444" : "#10B981",
-                    }}
-                    onClick={toggleMic}
-                >
-                    {isMuted ? <FiMicOff size={22} /> : <FiMic size={22} />}
-                    {isMuted ? "Mic Off" : "Mic On"}
-                </button>
+            {/* Ambient Background Glow */}
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-teal-500/10 blur-[120px] rounded-full" />
 
-                <button
-                    style={{ ...styles.button, backgroundColor: "#EF4444" }}
-                    onClick={() => endCall(true)}
+            {/* Header Info */}
+            <div className="flex flex-col items-center z-10">
+                <motion.div
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-1.5 rounded-full mb-8 backdrop-blur-xl"
                 >
-                    <FiPhoneOff size={22} /> End Call
-                </button>
+                    <ShieldCheck size={14} className="text-emerald-400" />
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400 font-bold">
+                        End-to-End Encrypted
+                    </p>
+                </motion.div>
+
+                <h1 className="text-4xl font-bold tracking-tight mb-3 capitalize">{audioid}</h1>
+
+                <div className="flex items-center gap-2 text-slate-400">
+                    {isCallActive ? (
+                        <span className="text-xl font-mono text-emerald-400 tracking-wider">
+                            {formatTime(callTime)}
+                        </span>
+                    ) : (
+                        <span className="animate-pulse flex items-center gap-2 italic">
+                            Connecting...
+                        </span>
+                    )}
+                </div>
             </div>
+
+            {/* Central Avatar & Wave Animation */}
+            <div className="relative flex items-center justify-center scale-110">
+                <AnimatePresence>
+                    {isCallActive && !isMuted && (
+                        <>
+                            <motion.div
+                                initial={{ scale: 0.8, opacity: 0.5 }}
+                                animate={{ scale: 2, opacity: 0 }}
+                                transition={{ repeat: Infinity, duration: 2, ease: "easeOut" }}
+                                className="absolute w-44 h-44 bg-emerald-500/20 rounded-full border border-emerald-500/30"
+                            />
+                            <motion.div
+                                initial={{ scale: 0.8, opacity: 0.3 }}
+                                animate={{ scale: 2.5, opacity: 0 }}
+                                transition={{ repeat: Infinity, duration: 2, delay: 0.7, ease: "easeOut" }}
+                                className="absolute w-44 h-44 bg-teal-500/10 rounded-full border border-teal-500/20"
+                            />
+                        </>
+                    )}
+                </AnimatePresence>
+
+                <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    className="relative z-10 w-48 h-48 rounded-full bg-gradient-to-tr from-[#1c1c1e] to-[#2c2c2e] p-1.5 shadow-[0_0_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
+                >
+                    <div className="w-full h-full rounded-full bg-[#121214] flex items-center justify-center overflow-hidden relative">
+                        <User size={90} className="text-slate-700" />
+
+                        {/* Speaker Indicator */}
+                        {isCallActive && !isMuted && (
+                            <motion.div
+                                animate={{ y: [0, -4, 0] }}
+                                transition={{ repeat: Infinity, duration: 1.5 }}
+                                className="absolute bottom-6 right-8 bg-emerald-500 p-2 rounded-full border-4 border-[#121214] shadow-lg"
+                            >
+                                <Volume2 size={16} className="text-white" />
+                            </motion.div>
+                        )}
+                    </div>
+                </motion.div>
+            </div>
+
+            <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+
+            {/* Control Bar */}
+            <motion.div
+                initial={{ y: 50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="w-full max-w-sm bg-[#1c1c1e]/60 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-5 flex items-center justify-around shadow-2xl z-20 relative ring-1 ring-white/5"
+            >
+                {/* Mute Button */}
+                <div className="flex flex-col items-center gap-2">
+                    <button
+                        onClick={toggleMic}
+                        className={`p-5 rounded-full transition-all duration-300 active:scale-90 ${isMuted ? "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]" : "bg-white/5 text-white hover:bg-white/10"
+                            }`}
+                    >
+                        {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
+                    </button>
+                    <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Mute</span>
+                </div>
+
+                {/* End Call Button */}
+                <button
+                    onClick={() => endCall(true)}
+                    className="p-7 bg-[#ff3b30] text-white rounded-full shadow-[0_10px_30px_rgba(255,59,48,0.4)] hover:scale-110 active:scale-95 transition-all group"
+                >
+                    <PhoneOff size={32} className="group-hover:rotate-[135deg] transition-transform duration-300" />
+                </button>
+
+                {/* More/Speaker Button */}
+                <div className="flex flex-col items-center gap-2">
+                    <button className="p-5 bg-white/5 text-white rounded-full hover:bg-white/10 transition-all active:scale-90">
+                        <Volume2 size={24} />
+                    </button>
+                    <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Speaker</span>
+                </div>
+            </motion.div>
+
+            {/* UI Polish: Bottom Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E11] via-transparent to-transparent pointer-events-none opacity-80" />
         </div>
     );
 }
-
-const styles = {
-    container: {
-        background: "#0D0D0D",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        color: "#fff",
-        fontFamily: "Arial, sans-serif",
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: "600",
-        marginBottom: 10,
-    },
-    timer: {
-        fontSize: 16,
-        color: "#9CA3AF",
-        marginBottom: 25,
-    },
-    buttonsWrapper: {
-        display: "flex",
-        gap: 20,
-    },
-    button: {
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "14px 24px",
-        borderRadius: 50,
-        color: "#fff",
-        fontSize: 16,
-        fontWeight: "bold",
-        cursor: "pointer",
-        border: "none",
-        transition: "0.2s",
-    },
-};

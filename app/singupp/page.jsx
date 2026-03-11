@@ -1,11 +1,10 @@
 "use client";
-
 import React, { useState, useContext } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { ChatContext } from "../context/chatcontext";
 import api from "../apicall";
-import { useRouter } from "next/navigation";
-
+import { User, Lock, Eye, EyeOff, Loader2, UserPlus, ShieldCheck } from "lucide-react";
 
 export default function SignupPage() {
     const [username, setUsername] = useState("");
@@ -16,27 +15,24 @@ export default function SignupPage() {
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
 
-    const { setMyUsername, updatePremium,
-        setLogin, } = useContext(ChatContext);
+    const { setMyUsername, updatePremium, setLogin } = useContext(ChatContext);
+    const router = useRouter();
 
-
-    let router = useRouter()
-
-    // Validation
     const validate = () => {
         const newErrors = {};
         if (!username.trim()) newErrors.username = "Username is required";
         if (!password) newErrors.password = "Password is required";
-        else if (password.length < 6) newErrors.password = "Min 6 chars";
-        if (!confirmPassword) newErrors.confirmPassword = "Confirm password is required";
+        else if (password.length < 6) newErrors.password = "Min 6 characters required";
+
+        if (!confirmPassword) newErrors.confirmPassword = "Please confirm your password";
         else if (password !== confirmPassword) newErrors.confirmPassword = "Passwords do not match";
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    // Signup handler
-    const handleSignup = async () => {
+    const handleSignup = async (e) => {
+        e.preventDefault();
         if (!validate()) return;
 
         setLoading(true);
@@ -46,9 +42,7 @@ export default function SignupPage() {
             const { data } = await api.post("/singup", {
                 username: lowerUsername,
                 password,
-                withCredentials: true
             });
-            console.log('dta', data)
 
             if (data.token) localStorage.setItem("tokenn", data.token);
             if (data.user?.username) {
@@ -64,151 +58,146 @@ export default function SignupPage() {
                 updatePremium(data.user.isPremium, data.user.premiumExpiry);
             }
 
-            alert("✅ Signup successful! You got 2 days premium!");
-            router.push('chatlist')
-
             setLogin(true);
+            router.push("/chatlist");
         } catch (error) {
             console.error(error);
-            alert("❌ Signup failed, please try again!");
+            setErrors({ general: "Signup failed. Username might be taken." });
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="container">
-            <div className="card">
-                <Image src="/login.jpg" alt="Logo" width={280} height={180} className="logo" />
-                <h1 className="title">Create Account</h1>
-                <p className="subtitle">Sign up to start chatting</p>
+        <div className="relative flex items-center justify-center min-h-screen overflow-hidden p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-black">
 
-                {/* Username */}
-                <div className="inputWrapper">
-                    <input
-                        type="text"
-                        placeholder="Username"
-                        value={username}
-                        onChange={(e) => {
-                            setUsername(e.target.value);
-                            if (errors.username) setErrors((prev) => ({ ...prev, username: null }));
-                        }}
-                    />
+            {/* Background Glows */}
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none" />
+
+            <div className="relative w-full max-w-[450px] transition-all duration-300">
+                <div className="p-8 md:p-10 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden">
+
+                    {/* Header */}
+                    <div className="flex flex-col items-center mb-8">
+                        <div className="relative w-16 h-16 mb-4 rounded-2xl overflow-hidden border border-white/20 shadow-lg group">
+                            <Image src="/login.jpg" alt="Logo" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                        </div>
+                        <h1 className="text-3xl font-bold text-white tracking-tight">Create Account</h1>
+                        <p className="text-slate-400 text-sm mt-1">Join our chat community today</p>
+                    </div>
+
+                    <form onSubmit={handleSignup} className="space-y-5">
+                        {errors.general && (
+                            <div className="p-3 text-xs font-medium text-center text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl">
+                                {errors.general}
+                            </div>
+                        )}
+
+                        {/* Username */}
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Username</label>
+                            <div className="relative group">
+                                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
+                                <input
+                                    type="text"
+                                    placeholder="Choose a unique name"
+                                    value={username}
+                                    onChange={(e) => {
+                                        setUsername(e.target.value);
+                                        if (errors.username) setErrors(prev => ({ ...prev, username: null }));
+                                    }}
+                                    className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
+                                />
+                            </div>
+                            {errors.username && <p className="text-red-400 text-[10px] ml-2">{errors.username}</p>}
+                        </div>
+
+                        {/* Password */}
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                            <div className="relative group">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Create strong password"
+                                    value={password}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        if (errors.password) setErrors(prev => ({ ...prev, password: null }));
+                                    }}
+                                    className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                            {errors.password && <p className="text-red-400 text-[10px] ml-2">{errors.password}</p>}
+                        </div>
+
+                        {/* Confirm Password */}
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Confirm Password</label>
+                            <div className="relative group">
+                                <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
+                                <input
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    placeholder="Repeat your password"
+                                    value={confirmPassword}
+                                    onChange={(e) => {
+                                        setConfirmPassword(e.target.value);
+                                        if (errors.confirmPassword) setErrors(prev => ({ ...prev, confirmPassword: null }));
+                                    }}
+                                    className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                                >
+                                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                            {errors.confirmPassword && <p className="text-red-400 text-[10px] ml-2">{errors.confirmPassword}</p>}
+                        </div>
+
+                        {/* Submit Button */}
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-4 mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            <span className="flex items-center justify-center gap-2">
+                                {loading ? <Loader2 className="animate-spin" size={20} /> : <><UserPlus size={18} /> Sign Up</>}
+                            </span>
+                        </button>
+                    </form>
+
+                    {/* Footer */}
+                    <div className="mt-8 text-center">
+                        <p className="text-sm text-slate-500">
+                            Already have an account?{" "}
+                            <button
+                                onClick={() => router.push("/login")}
+                                className="text-blue-400 font-bold hover:text-blue-300 underline-offset-4 hover:underline transition-colors"
+                            >
+                                Login
+                            </button>
+                        </p>
+                    </div>
                 </div>
-                {errors.username && <p className="errorText">{errors.username}</p>}
 
-                {/* Password */}
-                <div className="inputWrapper">
-                    <input
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => {
-                            setPassword(e.target.value);
-                            if (errors.password) setErrors((prev) => ({ ...prev, password: null }));
-                        }}
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)}>
-                        {showPassword ? "Hide" : "Show"}
-                    </button>
+                {/* Special Offer Badge */}
+                <div className="mt-6 flex justify-center">
+                    <div className="px-4 py-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-full">
+                        <p className="text-[12px] text-amber-200 font-medium">🎁 New users get 2 days Premium access!</p>
+                    </div>
                 </div>
-                {errors.password && <p className="errorText">{errors.password}</p>}
-
-                {/* Confirm Password */}
-                <div className="inputWrapper">
-                    <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        placeholder="Confirm Password"
-                        value={confirmPassword}
-                        onChange={(e) => {
-                            setConfirmPassword(e.target.value);
-                            if (errors.confirmPassword) setErrors((prev) => ({ ...prev, confirmPassword: null }));
-                        }}
-                    />
-                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                        {showConfirmPassword ? "Hide" : "Show"}
-                    </button>
-                </div>
-                {errors.confirmPassword && <p className="errorText">{errors.confirmPassword}</p>}
-
-                {/* Signup Button */}
-                <button className="button" onClick={handleSignup} disabled={loading}>
-                    {loading ? "Loading..." : "Sign Up"}
-                </button>
-
-                {/* Login Button */}
-                <button className="altButton" onClick={() => window.location.href = "/login"}>
-                    Login
-                </button>
             </div>
-
-            <style jsx>{`
-        .container {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          min-height: 100vh;
-          padding: 20px;
-        }
-        .card {
-          max-width: 380px;
-          width: 100%;
-          border-radius: 20px;
-          padding: 24px;
-          background-color: rgba(255, 255, 255, 0.9);
-          box-shadow: 0 8px 16px rgba(0,0,0,0.25);
-          text-align: center;
-        }
-        .logo {
-          border-radius: 20px;
-          margin-bottom: 16px;
-        }
-        .title { font-size: 28px; font-weight: 800; margin: 0; }
-        .subtitle { font-size: 14px; margin-bottom: 20px; }
-        .inputWrapper {
-          display: flex;
-          align-items: center;
-          margin-bottom: 16px;
-          border-radius: 12px;
-          border: 1px solid #ccc;
-          padding: 8px;
-        }
-        input {
-          flex: 1;
-          padding: 10px;
-          border: none;
-          outline: none;
-        }
-        button {
-          cursor: pointer;
-        }
-        .button {
-          background-color: #2563EB;
-          color: white;
-          width: 100%;
-          padding: 14px;
-          border-radius: 12px;
-          margin-top: 8px;
-          border: none;
-          font-weight: 700;
-        }
-        .altButton {
-          background-color: #fff;
-          color: #0F172A;
-          margin-top: 12px;
-          width: 100%;
-          padding: 14px;
-          border-radius: 12px;
-          border: 1px solid #ccc;
-          font-weight: 700;
-        }
-        .errorText {
-          color: #EF4444;
-          font-size: 13px;
-          text-align: left;
-          margin: -12px 0 8px 0;
-        }
-      `}</style>
         </div>
     );
 }
