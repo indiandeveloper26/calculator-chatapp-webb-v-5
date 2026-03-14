@@ -4,6 +4,7 @@ import React, { useEffect, useState, useContext } from "react";
 import { useRouter } from "next/navigation";
 import { ChatContext } from "../context/chatcontext";
 import { MessageSquarePlus, Trash2, ShieldCheck } from "lucide-react";
+import socket from "../socket";
 
 export default function ChatList() {
   const router = useRouter();
@@ -17,6 +18,13 @@ export default function ChatList() {
     const savedName = localStorage.getItem("username");
     if (savedName) setUsername(savedName);
   }, []);
+
+  console.log('allchatlsti', visibleChats)
+
+
+  // // console.log('username', username)
+
+  // socket.emit("setUsername", username);
 
   const openChat = (item) => {
     if (!item?.adduser) return;

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChatContext } from "@/app/context/chatcontext";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useContext, useEffect, useRef, useState } from "react";
 import { Mic, MicOff, PhoneOff, Video, User } from "lucide-react";
 
@@ -11,17 +11,27 @@ export default function page() {
     const [remoteStream, setRemoteStream] = useState(null);
     const [isMuted, setIsMuted] = useState(false);
 
+
+    let params = useParams()
+
+    const { id } = params;
+
+
+    console.log('from user', id)
+
     const pc = useRef(null);
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
 
-    const { socket, myUsername, incomingUser } = useContext(ChatContext);
+    const { socket, myUsername, roomid, incomingUser } = useContext(ChatContext);
     const route = useRouter();
 
     console.log(`myusername${myUsername} and incomunername${incomingUser}`)
 
     // ✅ Dummy room id
-    const ROOM_ID = "123456";
+    const ROOM_ID = roomid
+
+    console.log('roomid same hai', roomid)
 
     useEffect(() => {
 
@@ -174,19 +184,28 @@ export default function page() {
         }
 
     };
+    const endCall = (shouldEmit = true) => {
 
-    const endCall = () => {
+
+
+        // close peer connection
+        if (pc.current) {
+            pc.current.close();
+            pc.current = null;
+        }
+
+        // stop camera/mic
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+
+        // emit only if user pressed button
+
+
+        setLocalStream(null);
+        setRemoteStream(null);
 
         route.push("/chatlist");
-
-        pc.current?.close();
-
-        localStream?.getTracks().forEach(track => track.stop());
-
-        socket.emit("end-call", { roomId: ROOM_ID, to: "sajil", from: "akku" });
-
-        setRemoteStream(null);
-        setLocalStream(null);
 
     };
 

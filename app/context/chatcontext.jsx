@@ -25,7 +25,7 @@ export const ChatProvider = ({ children }) => {
     const [messages, setMessages] = useState([]);
     const [chatList, setChatList] = useState([]);
     const [typingUser, setTypingUser] = useState(null);
-    const [onlineUsers, setOnlineUsers] = useState([]);
+
     const [deletedUsers, setDeletedUsers] = useState([]);
     const [layouthide, setlayouthide] = useState(true)
     const [isPremium, setIsPremium] = useState(false);
@@ -39,8 +39,9 @@ export const ChatProvider = ({ children }) => {
     const [callchek, setcallchek] = useState(true)
     const [userdata, setUserdata] = useState(null);
     const [setcurrenuser, setsetcurrenuser] = useState(null)
+    const [roomid, setroomid] = useState(null)
     const typingTimeoutRef = useRef(null);
-
+    const [onlineUsers, setOnlineUsers] = useState([]);
 
     let ruter = useRouter()
 
@@ -55,19 +56,26 @@ export const ChatProvider = ({ children }) => {
     // ✅ Initialize user and socket
     useEffect(() => {
 
-        console.log('socket conet hua name se')
+        console.log("socket connect check");
+
         if (!socket.connected) socket.connect();
 
         const name = localStorage.getItem("username");
-        if (myUsername) {
-            setMyUsername(myUsername);
+
+        if (name) {
+            setMyUsername(name);
             setLogin(true);
+
             socket.emit("setUsername", name);
 
             try {
-                const savedList = JSON.parse(localStorage.getItem(`chatlist_${name}`)) || [];
-                const savedMsgs = JSON.parse(localStorage.getItem(`messages_${name}`)) || [];
-                const savedDeleted = JSON.parse(localStorage.getItem(`deleted_${name}`)) || [];
+                const savedList =
+                    JSON.parse(localStorage.getItem(`chatlist_${name}`)) || [];
+                const savedMsgs =
+                    JSON.parse(localStorage.getItem(`messages_${name}`)) || [];
+                const savedDeleted =
+                    JSON.parse(localStorage.getItem(`deleted_${name}`)) || [];
+
                 setChatList(savedList);
                 setMessages(savedMsgs);
                 setDeletedUsers(savedDeleted);
@@ -75,30 +83,43 @@ export const ChatProvider = ({ children }) => {
                 console.error("LocalStorage parsing error:", err);
             }
         }
-    }, [myUsername]);
 
-
+    }, []);
 
     useEffect(() => {
+        if (!socket) return;
 
-        socket.on("webrtc-offer", async ({ from, sdp }) => {
-            console.log("📨 Offer received from", from);
+        // 1. Jab aap login karte hain, server se puri list milti hai
+        socket.on("onlineUsersList", (usersArray) => {
+            console.log("Full online users list:", usersArray);
+            setOnlineUsers(usersArray);
+        });
 
-            await pc.current.setRemoteDescription({
-                type: "offer",
-                sdp,
-            });
-
-            const answer = await pc.current.createAnswer();
-            await pc.current.setLocalDescription(answer);
-
-            socket.emit("webrtc-answer", {
-                to: from,
-                sdp: answer.sdp,
+        // 2. Jab koi naya user online aaye ya offline jaye
+        socket.on("userStatus", ({ username, online }) => {
+            setOnlineUsers((prevUsers) => {
+                if (online) {
+                    // Agar user online aaya aur list mein nahi hai, toh add karo
+                    if (!prevUsers.includes(username)) {
+                        return [...prevUsers, username];
+                    }
+                    return prevUsers;
+                } else {
+                    // Agar offline gaya, toh list se remove karo
+                    return prevUsers.filter((u) => u !== username);
+                }
             });
         });
 
-    }, [socket])
+        // Cleanup: Component unmount hone par listeners band karein
+        return () => {
+            socket.off("onlineUsersList");
+            socket.off("userStatus");
+        };
+    }, [socket]);
+
+
+
 
 
     // ✅ Fetch userdata from API
@@ -128,7 +149,7 @@ export const ChatProvider = ({ children }) => {
                     localStorage.removeItem("premiumExpiry");
                 }
             } catch (err) {
-                console.error("Error fetching user:", err.message);
+                // console.error("Error fetching user:",);
             }
         };
         fetchUserData();
@@ -165,6 +186,8 @@ export const ChatProvider = ({ children }) => {
             setIncomingUser({ from, callType, to, roomId });
             setIncomingCall(true);
 
+            setroomid(roomId)
+
             console.log("📞 Incoming call:", from, roomId, callType);
         };
 
@@ -175,7 +198,7 @@ export const ChatProvider = ({ children }) => {
             setIncomingCall(false);
 
             if (type === "video") {
-                ruter.push(`/chatlist/${from}/callui/videocall`);
+                ruter.push(`/chatlist/videocall/${from}`);
             } else if (type === "audio") {
 
 
@@ -186,6 +209,13 @@ export const ChatProvider = ({ children }) => {
         const errror = ({ message, to }) => {
             console.log("⚠️ Call error:", message, to);
         };
+
+        const callrejected = ({ by }) => {
+
+            console.log('call reject kiya ', by)
+            ruter.push(`/chatlist`);
+
+        }
 
         const handleCallRejected = ({ by }) => {
 
@@ -201,12 +231,14 @@ export const ChatProvider = ({ children }) => {
         socket.on("incoming-call", handleIncomingCall);
         socket.on("call-accepted", handleCallAccepted);
         socket.on("end-call", handleCallRejected);
+        socket.on("call-rejected", callrejected);
         socket.on("call-error", errror);
 
         return () => {
             socket.off("incoming-call", handleIncomingCall);
             socket.off("call-accepted", handleCallAccepted);
             socket.off("end-call", handleCallRejected);
+            socket.off("call-rejected", callrejected);
             socket.off("call-error", errror);
         };
 
@@ -240,10 +272,13 @@ export const ChatProvider = ({ children }) => {
     // ✅ Handle incoming private messages
     const handleIncomingMessage = useCallback((msg) => {
 
-        console.log('messs', msg)
         if (!msg.id) return;
-        const { from, to, message, type } = msg;
+        const { id, from, to, message, type, serverTimestamp, seen } = msg;
         const otherUser = from === myUsername ? to : from;
+
+
+
+        console.log('private mess coming now', id, from, to, message, type, serverTimestamp, seen)
 
         setDeletedUsers((prev) => {
             if (prev.includes(otherUser)) {
@@ -262,6 +297,9 @@ export const ChatProvider = ({ children }) => {
         });
 
         setChatList((prev) => {
+
+            console.log('setchatli ', prev)
+
             const index = prev.findIndex((c) => c.adduser === otherUser);
             let updated;
             if (index !== -1) {
@@ -381,6 +419,7 @@ export const ChatProvider = ({ children }) => {
                 isPremium,
                 updatePremium,
                 incomingUser,
+                onlineUsers,
                 incomingCall,
                 acceptedCall,
                 premiumExpiry,
@@ -400,6 +439,7 @@ export const ChatProvider = ({ children }) => {
                 acceptCall,
                 layouthide,
                 setlayouthide,
+                roomid, setroomid,
                 rejectCall,
             }}
         >

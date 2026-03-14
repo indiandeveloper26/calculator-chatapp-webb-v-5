@@ -68,7 +68,7 @@ export default function IncomingCall() {
         if (type === "video") {
 
             console.log('go vidoe call')
-            router.push(`/chatlist/${callerId}/callui/videocall`);
+            router.push(`/chatlist/videocall/${callerId}`);
         } else {
             router.push(`/chatlist/audiocall/${callerId}`);
             console.log('go auido call')
@@ -76,10 +76,19 @@ export default function IncomingCall() {
     };
 
     const rejectCall = () => {
+
+
+
+
+        console.log('call resjctliya', incomingUser.from)
         stopRingtone();
-        if (incomingCall?.from) {
-            socket.emit("reject-call", { to: incomingCall.from });
-        }
+
+        console.log('call resjctliya22')
+        socket.emit("reject-call", {
+            to: incomingUser?.from,            // Dusra banda
+            from: myUsername    // Aap khud
+        });
+
         setIncomingCall(null);
     };
 

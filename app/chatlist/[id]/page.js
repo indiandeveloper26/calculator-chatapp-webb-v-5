@@ -26,6 +26,7 @@ export default function ChatRoom() {
         messages,
         myUsername,
         sendMessage,
+        roomid, setroomid,
         onlineUsers,
         socket,
         typingUser,
@@ -35,6 +36,13 @@ export default function ChatRoom() {
     const [previewImg, setPreviewImg] = useState(null);
     const [uploadLoading, setUploadLoading] = useState(false);
 
+    // Isko apne ChatRoom ke bilkul top par rakhein (baaki hooks ke saath)
+    useEffect(() => {
+        console.log("🔥 Hook Triggered! Total Messages:", messages);
+        if (messages.length > 0) {
+            console.log("📥 Full Messages Data:", messages);
+        }
+    }, [messages]); // Ensure yahan 'messages' hi likha ho
     const filtered = messages.filter(
         (m) =>
             (m.from === myUsername && m.to === id) ||
@@ -44,8 +52,11 @@ export default function ChatRoom() {
     const isOnline = onlineUsers.includes(id);
 
     useEffect(() => {
+
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [filtered, typingUser]);
+
+
 
     // --- YOUR EXISTING LOGIC (PRESERVED) ---
     const handleSend = () => {
@@ -75,12 +86,32 @@ export default function ChatRoom() {
     };
 
     const handleVideoCall = () => {
-        socket.emit("call-user", { from: myUsername, to: id, callType: "video" });
-        router.push(`/chatlist/${id}/callui`);
+        const roomId = `${myUsername}_${Date.now()}`;
+
+        // 2. Server ko bhejein taaki receiver ko pata chale kaunsa room join karna hai
+        socket.emit("call-user", {
+            from: myUsername,
+            to: id,
+            callType: "video",
+            roomId: roomId
+        });
+
+        setroomid(roomId)
+        router.push(`/chatlist/videocall/${id}`);
+
     };
 
     const handleAudioCall = () => {
-        socket.emit("call-user", { from: myUsername, to: id, callType: "audio" });
+        const roomId = `${myUsername}_${Date.now()}`;
+
+        socket.emit("call-user", {
+            from: myUsername,
+            to: id,
+            callType: "audio",
+            roomId: roomId
+        });
+
+        setroomid(roomId)
         router.push(`/chatlist/audiocall/${id}`);
     };
 
