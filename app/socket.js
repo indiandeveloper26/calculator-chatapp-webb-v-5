@@ -22,7 +22,7 @@ import { io } from "socket.io-client";
 //     autoConnect: false, // manual connect
 // });
 
-// const socket = io("https://calculator-chatapp-server-v-4.onrender.com", {
+//const socket = io("https://calculator-chatapp-server-v-4.onrender.com", {
 const socket = io('http://192.168.31.144:4000', {
     transports: ["websocket"],
     autoConnect: false, // manual connect

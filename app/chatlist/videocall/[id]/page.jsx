@@ -184,31 +184,34 @@ export default function page() {
         }
 
     };
-    const endCall = (shouldEmit = true) => {
+    const endCall = () => {
 
+        console.log('call end ingn')
 
+        if (socket?.connected) {
 
-        // close peer connection
+            console.log("📞 call end emit", id);
+
+            socket.emit("end-call", {
+                from: myUsername,
+                to: id
+            });
+        }
+
         if (pc.current) {
             pc.current.close();
             pc.current = null;
         }
 
-        // stop camera/mic
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
         }
 
-        // emit only if user pressed button
-
-
         setLocalStream(null);
         setRemoteStream(null);
 
-        route.push("/chatlist");
-
+        navigation.navigate("/chatlist");
     };
-
     return (
 
         <div className="relative h-screen w-full bg-black flex items-center justify-center">

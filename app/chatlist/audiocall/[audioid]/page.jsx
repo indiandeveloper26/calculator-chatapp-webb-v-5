@@ -167,7 +167,7 @@
 "use client";
 
 import { ChatContext } from "@/app/context/chatcontext";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useContext, useEffect, useRef, useState } from "react";
 import { Mic, MicOff, PhoneOff, User } from "lucide-react";
 
@@ -177,15 +177,24 @@ export default function AudioCallPage() {
     const [isMuted, setIsMuted] = useState(false);
     const [seconds, setSeconds] = useState(0);
 
+    let params = useParams()
+
+    const { audioid } = params;
+
+
+    console.log('username', audioid)
+
     const pc = useRef(null);
     const remoteAudioRef = useRef(null);
     const timerRef = useRef(null);
 
     // Context se data nikalna
-    const { socket, incomingUser, roomid } = useContext(ChatContext);
+    const { socket, incomingUser, myUsername, roomid } = useContext(ChatContext);
     const router = useRouter();
 
     // Agar context mein roomId hai toh wo use karein, warna fallback ID
+    // const ROOM_ID = roomid
+
     const ROOM_ID = roomid
     // User ka naam dikhane ke liye 'from' property use karein
     const callerName = incomingUser?.from || "Unknown User";
@@ -312,9 +321,35 @@ export default function AudioCallPage() {
         }
     };
 
-    const endCall = () => {
-        cleanup();
-        router.push("/chatlist");
+
+
+    const endCall = (shouldEmit = true) => {
+
+        if (shouldEmit && socket?.connected) {
+
+            cleanup()
+
+            console.log("📞 call end emit",);
+
+            socket.emit("end-call", {
+                from: myUsername,
+                to: audioid
+            });
+        }
+
+        if (pc.current) {
+            pc.current.close();
+            pc.current = null;
+        }
+
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+
+        setLocalStream(null);
+        setRemoteStream(null);
+
+        navigation.navigate("/chatlist");
     };
 
     return (

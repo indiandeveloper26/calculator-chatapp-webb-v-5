@@ -219,7 +219,7 @@ export const ChatProvider = ({ children }) => {
 
         const handleCallRejected = ({ by }) => {
 
-            console.log("❌ Call rejected by:", by);
+            console.log("❌ Call end by:");
 
             setcallchek(false);
             setIncomingCall(false);
@@ -230,14 +230,14 @@ export const ChatProvider = ({ children }) => {
 
         socket.on("incoming-call", handleIncomingCall);
         socket.on("call-accepted", handleCallAccepted);
-        socket.on("end-call", handleCallRejected);
+        socket.on("call-end", handleCallRejected);
         socket.on("call-rejected", callrejected);
         socket.on("call-error", errror);
 
         return () => {
             socket.off("incoming-call", handleIncomingCall);
             socket.off("call-accepted", handleCallAccepted);
-            socket.off("end-call", handleCallRejected);
+            socket.off("call-end", handleCallRejected);
             socket.off("call-rejected", callrejected);
             socket.off("call-error", errror);
         };
